@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Blog;
+namespace App\Http\Controllers\Blog\Admin;
 
 use App\Http\Controllers\Blog\BaseController as GuestController;
 use Illuminate\Http\Request;

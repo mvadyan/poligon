@@ -3,41 +3,77 @@
 namespace App\Http\Controllers\Blog\Admin;
 
 
+use App\Http\Requests\BlogCategoryCreateRequest;
 use App\Http\Requests\BlogCategoryUpdateRequest;
 use App\Models\BlogCategory;
+use App\Repositories\BlogCategoryRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class CategoryController extends BaseController
 {
+    /**
+     * @var BlogCategoryRepository
+     */
+    private $blogCategoryRepository;
+
+    /**
+     * CategoryController constructor.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+
+        $this->blogCategoryRepository = app(BlogCategoryRepository::class);
+    }
+
     /**
      * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
      */
     public function index()
     {
-        $paginator = BlogCategory::paginate(5);
+        //$paginator = BlogCategory::paginate(5);
+        $paginator = $this->blogCategoryRepository->getAllWithPaginate(5);
 
         return view('blog.admin.category.index', compact('paginator'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
      */
     public function create()
     {
-        dd(__METHOD__);
+        $item = new BlogCategory();
+        $categoryList =  $this->blogCategoryRepository->getForComboBox();;
+
+        return view('blog.admin.category.edit', compact('item', 'categoryList'));
+
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
+     * @param BlogCategoryCreateRequest $request
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(BlogCategoryCreateRequest $request)
     {
-        dd(__METHOD__);
+        $data = $request->input();
+
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
+        }
+
+        $item = (new BlogCategory())->create($data);
+
+        if ($item) {
+            return redirect()
+                ->route('blog.admin.categories.edit', $item->id)
+                ->with(['success' => 'Успешно сохранено']);
+        } else {
+            return back()
+                ->withErrors(['msg' => 'Ошибка сохранения'])
+                ->withInput();
+        }
+
     }
 
     /**
@@ -57,10 +93,16 @@ class CategoryController extends BaseController
      */
     public function edit($id)
     {
-        $item = BlogCategory::findOrFail($id);
-        $categoryList = BlogCategory::all();
+        $item = $this->blogCategoryRepository->getEdit($id);
 
-        return view('blog.admin.category.edit', compact('item', 'categoryList'));
+        if (empty($item)) {
+            abort(404);
+        }
+
+        $categoryList = $this->blogCategoryRepository->getForComboBox();
+
+        return view('blog.admin.category.edit',
+            compact('item', 'categoryList'));
     }
 
     /**
@@ -80,7 +122,9 @@ class CategoryController extends BaseController
         }
 
         $data = $request->all();
-        $result = $item->fill($data)->save();
+        //$result = $item->fill($data)->save();
+
+        $result = $item->update($data);
 
         if ($result) {
             return redirect()
